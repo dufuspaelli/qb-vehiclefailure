@@ -182,7 +182,7 @@ local function IsNearMechanic()
 	local pedLocation = GetEntityCoords(ped, 0)
 	for _, item in pairs(repairCfg.mechanics) do
 		local distance = #(vector3(item.x, item.y, item.z) - pedLocation)
-		if distance <= item.r then
+		if distance <= 20 then
 			return true
 		end
 	end
@@ -663,5 +663,125 @@ CreateThread(function()
 			end
 			pedInSameVehicleLast = false
 		end
+	end
+end)
+
+RegisterNetEvent("startPedRepair", function(data)
+	QBCore.Functions.Progressbar("deliverbag", "Repairing vehicle..", 2000, false, true, {
+		disableMovement = true,
+		disableCarMovement = true,
+		disableMouse = false,
+		disableCombat = true,
+	}, {}, {}, {}, function() 
+		local vehicle = GetVehiclePedIsIn(PlayerPedId(),true)
+		--SetVehicleEngineHealth(vehicle, 1000.0)
+		print("triggered")
+		local engineDamage = GetVehicleEngineHealth(vehicle)
+		SetVehicleDeformationFixed(vehicle)
+		SetVehicleFixed(vehicle)
+		SetVehicleEngineOn(vehicle, true, false)
+		SetVehicleEngineHealth(vehicle, engineDamage)
+		TriggerServerEvent("payRepairs", data.price)
+	end)
+
+end)
+
+
+RegisterNetEvent("startPedFullRepair", function(data)
+	QBCore.Functions.Progressbar("deliverbag", "Repairing vehicle..", 5000, false, true, {
+		disableMovement = true,
+		disableCarMovement = true,
+		disableMouse = false,
+		disableCombat = true,
+	}, {}, {}, {}, function() 
+		local vehicle = GetVehiclePedIsIn(PlayerPedId(),true)
+		--SetVehicleEngineHealth(vehicle, 1000.0)
+		print("triggered")
+		SetVehicleDeformationFixed(vehicle)
+		SetVehicleFixed(vehicle)
+		SetVehicleEngineOn(vehicle, true, false)
+		TriggerServerEvent("payRepairs", data.price)
+	end)
+
+end)
+
+function DrawText3Ds(x, y, z, text)
+	SetTextScale(0.35, 0.35)
+    SetTextFont(4)
+    SetTextProportional(1)
+    SetTextColour(255, 255, 255, 215)
+    SetTextEntry("STRING")
+    SetTextCentre(true)
+    AddTextComponentString(text)
+    SetDrawOrigin(x,y,z, 0)
+    DrawText(0.0, 0.0)
+    local factor = (string.len(text)) / 370
+    DrawRect(0.0, 0.0+0.0125, 0.017+ factor, 0.03, 0, 0, 0, 75)
+    --ClearDrawOrigin()
+end
+
+CreateThread(function()
+	while true do
+		if IsNearMechanic() then 
+			--print("near mechanic")
+			wait=1
+			local coords = GetEntityCoords(PlayerPedId())
+		
+			local ped = PlayerPedId()
+			local pedLocation = GetEntityCoords(ped, 0)
+			for _, item in pairs(repairCfg.mechanics) do
+				local distance = #(vector3(item.x, item.y, item.z) - pedLocation)
+				if distance <= 10 then
+					DrawText3Ds(item.x,item.y,item.z,"[Press ~p~E~w~ - Repair vehicle")
+					DrawMarker(21, item.x, item.y, item.z + 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 148, 0, 211, 200, true, false, 2, true, nil, nil, false)
+				end
+			end
+			DisableControlAction(0,86, true)
+			if IsDisabledControlJustReleased(0,86) then
+				local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+				local bodyDamage = math.floor(GetVehicleBodyHealth(vehicle)/10)
+				local engineDamage = math.floor(GetVehicleEngineHealth(vehicle)/10)
+				local bodyPrice = math.ceil(1000 - GetVehicleBodyHealth(vehicle))
+				local fullPrice = math.ceil(2000 - (GetVehicleBodyHealth(vehicle) + GetVehicleEngineHealth(vehicle) ))
+				local isDriver = GetPedInVehicleSeat(vehicle, -1)
+				if vehicle and PlayerPedId() == isDriver then 
+					local headerMenu = {}
+					headerMenu[1] = {
+						header = "Vehicle Repairs",
+						txt = "Engine health: " .. engineDamage .. "% " .. "Body health: " .. bodyDamage .. "%",
+						isMenuHeader = true, -- Set to true to make a nonclickable title
+					}
+					headerMenu[2] = {
+						header = "Repair Body",
+						txt = "$"..bodyPrice,
+						params = {
+							event = 'startPedRepair',
+							args = {
+								price = bodyPrice,
+							
+							}
+						}
+					}
+					headerMenu[3] = {
+						header = "Repair Engine and Body",
+						txt = "$"..fullPrice,
+						params = {
+							event = 'startPedFullRepair',
+							args = {
+								price = fullPrice
+							}
+						}
+					}
+					exports['qb-menu']:openMenu(headerMenu)
+				else
+					QBCore.Functions.Notify("You need to be driving a vehicle to use this!", "error") 
+				end
+			
+			end
+		else 
+			DisableControlAction(0,86, false)
+			wait=1000
+		end
+		Wait(wait)
 	end
 end)
